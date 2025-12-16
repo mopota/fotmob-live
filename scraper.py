@@ -1,46 +1,29 @@
 import requests
-from datetime import date
+from datetime import datetime, timedelta
 import json
 import sys
 
-def get_today_matches():
-    today = date.today().strftime("%Y-%m-%d")
-    url = f"https://www.fotmob.com/api/matches?date={today}"
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Accept": "application/json",
+    "Referer": "https://www.fotmob.com/"
+}
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        "Accept": "application/json",
-        "Referer": "https://www.fotmob.com/"
-    }
-
-    try:
-        res = requests.get(url, headers=headers, timeout=20)
-    except Exception as e:
-        print("REQUEST ERROR:", e)
-        return []
-
-    print("STATUS:", res.status_code)
+def fetch_by_date(d):
+    # صيغة بتشتغل بثبات مع FotMob
+    date_str = d.strftime("%Y%m%d")
+    url = f"https://www.fotmob.com/api/matches?date={date_str}"
+    res = requests.get(url, headers=HEADERS, timeout=20)
 
     if res.status_code != 200:
-        print("NON-200 RESPONSE")
-        print(res.text[:200])
-        return []
-
-    content_type = res.headers.get("Content-Type", "")
-    if "json" not in content_type:
-        print("NOT JSON RESPONSE")
-        print(res.text[:200])
         return []
 
     try:
         data = res.json()
-    except Exception as e:
-        print("JSON PARSE ERROR:", e)
-        print(res.text[:200])
+    except:
         return []
 
     matches = []
-
     for league in data.get("leagues", []):
         for m in league.get("matches", []):
             matches.append({
@@ -48,19 +31,26 @@ def get_today_matches():
                 "league": league.get("name"),
                 "home": m.get("home", {}).get("name"),
                 "away": m.get("away", {}).get("name"),
-                "score": f'{m.get("home", {}).get("score", 0)}-{m.get("away", {}).get("score", 0)}',
+                "score": f'{m.get("home", {}).get("score", 0)}-{m.get("away", {}).get("awayScore", m.get("away", {}).get("score", 0))}',
                 "status": m.get("status", {}).get("reason", {}).get("short", "")
             })
-
     return matches
 
-
 if __name__ == "__main__":
-    matches = get_today_matches()
+    today_utc = datetime.utcnow().date()
+
+    all_matches = []
+    # أمس + اليوم + بكرة (عشان فرق التوقيت)
+    for delta in [-1, 0, 1]:
+        all_matches.extend(fetch_by_date(today_utc + timedelta(days=delta)))
+
+    # إزالة التكرار
+    uniq = {m["id"]: m for m in all_matches if m.get("id")}
+    matches = list(uniq.values())
+
     print("MATCHES FOUND:", len(matches))
 
     with open("matches_today.json", "w", encoding="utf-8") as f:
         json.dump(matches, f, ensure_ascii=False, indent=2)
 
-    # مهم جدًا: نطلع دايمًا exit code 0
     sys.exit(0)
