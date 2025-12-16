@@ -1,54 +1,39 @@
-import requests
-from datetime import datetime, timedelta
+from playwright.sync_api import sync_playwright
 import json
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    "Accept": "application/json",
-    "Referer": "https://www.fotmob.com/"
-}
+URL = "https://www.sofascore.com/football"
 
-def fetch_day(day):
-    date_str = day.strftime("%Y-%m-%d")
-    url = f"https://www.fotmob.com/api/matches?date={date_str}&timezone=UTC"
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    page = browser.new_page()
+    page.goto(URL, timeout=60000)
 
-    res = requests.get(url, headers=HEADERS, timeout=20)
-    if res.status_code != 200:
-        return []
-
-    try:
-        data = res.json()
-    except:
-        return []
+    # استنى تحميل المباريات
+    page.wait_for_selector('[data-testid="event-list"]', timeout=60000)
 
     matches = []
-    for league in data.get("leagues", []):
-        for m in league.get("matches", []):
+
+    events = page.query_selector_all('[data-testid="event-list-item"]')
+
+    for e in events:
+        try:
+            home = e.query_selector('[data-testid="home-team-name"]').inner_text()
+            away = e.query_selector('[data-testid="away-team-name"]').inner_text()
+            score = e.query_selector('[data-testid="event-score"]').inner_text()
+            status = e.query_selector('[data-testid="event-status"]').inner_text()
+
             matches.append({
-                "id": m.get("id"),
-                "league": league.get("name"),
-                "home": m.get("home", {}).get("name"),
-                "away": m.get("away", {}).get("name"),
-                "homeScore": m.get("home", {}).get("score"),
-                "awayScore": m.get("away", {}).get("score"),
-                "status": m.get("status", {}).get("reason", {}).get("short"),
-                "utcTime": m.get("status", {}).get("utcTime")
+                "home": home.strip(),
+                "away": away.strip(),
+                "score": score.strip(),
+                "status": status.strip()
             })
-    return matches
+        except:
+            continue
 
+    browser.close()
 
-if __name__ == "__main__":
-    today = datetime.utcnow().date()
+print("MATCHES FOUND:", len(matches))
 
-    all_matches = []
-    for offset in [-1, 0, 1]:  # أمس / اليوم / بكرة
-        all_matches.extend(fetch_day(today + timedelta(days=offset)))
-
-    # إزالة التكرار
-    unique = {m["id"]: m for m in all_matches if m.get("id")}
-    matches = list(unique.values())
-
-    print("MATCHES FOUND:", len(matches))
-
-    with open("matches_today.json", "w", encoding="utf-8") as f:
-        json.dump(matches, f, ensure_ascii=False, indent=2)
+with open("matches_today.json", "w", encoding="utf-8") as f:
+    json.dump(matches, f, ensure_ascii=False, indent=2)
