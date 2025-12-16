@@ -8,9 +8,9 @@ HEADERS = {
     "Referer": "https://www.fotmob.com/"
 }
 
-def fetch_day(d):
-    date_str = d.strftime("%Y%m%d")
-    url = f"https://www.fotmob.com/api/matches?date={date_str}"
+def fetch_day(day):
+    date_str = day.strftime("%Y-%m-%d")
+    url = f"https://www.fotmob.com/api/matches?date={date_str}&timezone=UTC"
 
     res = requests.get(url, headers=HEADERS, timeout=20)
     if res.status_code != 200:
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     today = datetime.utcnow().date()
 
     all_matches = []
-    for offset in [-1, 0, 1]:
+    for offset in [-1, 0, 1]:  # أمس / اليوم / بكرة
         all_matches.extend(fetch_day(today + timedelta(days=offset)))
 
     # إزالة التكرار
