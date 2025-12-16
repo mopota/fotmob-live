@@ -14,18 +14,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install deps
+      - name: Install Playwright
         run: |
-          pip install playwright
-          playwright install chromium
+          python -m pip install --upgrade pip
+          python -m pip install playwright
+          python -m playwright install chromium
 
       - name: Run scraper
         run: python scraper.py
@@ -37,4 +40,4 @@ jobs:
 
           git add matches_today.json
           git commit -m "Update matches" || echo "No changes"
-          git push
+          git push origin main
