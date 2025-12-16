@@ -14,28 +14,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install dependencies
-        run: pip install requests
+      - name: Install deps
+        run: |
+          pip install playwright
+          playwright install chromium
 
       - name: Run scraper
         run: python scraper.py
 
-      - name: Commit & push results
+      - name: Commit & push
         run: |
           git config --global user.name "github-bot"
           git config --global user.email "bot@github.com"
 
-          git pull origin main --rebase
-
           git add matches_today.json
           git commit -m "Update matches" || echo "No changes"
-
-          git push origin main
+          git push
